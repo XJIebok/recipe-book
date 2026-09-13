@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
+import AppNav from "./ui/AppNav";
+import DemoAuthProvider from "./providers/DemoAuthProvider";
 
 export const metadata: Metadata = {
   title: "Электронная книга рецептов",
@@ -14,7 +16,12 @@ type RootLayoutProps = Readonly<{
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="ru">
-      <body>{children}</body>
+      <body>
+        <DemoAuthProvider>
+          <AppNav />
+          {children}
+        </DemoAuthProvider>
+      </body>
     </html>
   );
 }

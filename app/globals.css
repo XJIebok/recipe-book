@@ -7,9 +7,16 @@ html {
 }
 
 body {
+  min-height: 100vh;
   margin: 0;
+
   color: #2f2a25;
   font-family: Arial, Helvetica, sans-serif;
+
+  background-color: #f7f3ed;
+  background-image: url("/patterns/pumpkin_background.svg");
+  background-repeat: repeat;
+  background-size: 120px 160px;
 }
 
 main {
@@ -37,6 +44,17 @@ li {
   line-height: 1.6;
 }
 
+/* Выделяем основные смысловые блоки поверх фонового узора. */
+main > section {
+  padding: 24px;
+
+  border: 1px solid #d8cfc5;
+  border-radius: 14px;
+
+  background: rgb(255 255 255 / 92%);
+  box-shadow: 0 4px 18px rgb(47 42 37 / 6%);
+}
+
 .eyebrow {
   margin-bottom: 8px;
   color: #8b4a2f;
@@ -52,9 +70,12 @@ li {
 
 .feature-card {
   padding: 20px;
+
   border: 1px solid #d8cfc5;
   border-radius: 12px;
-  background: #ffffff;
+
+  background: rgb(255 255 255 / 94%);
+  box-shadow: 0 3px 12px rgb(47 42 37 / 5%);
 }
 
 .feature-card h3 {
@@ -70,4 +91,267 @@ li {
 .main-link:focus-visible {
   outline: 3px solid #8b4a2f;
   outline-offset: 4px;
+}
+
+/* Оформление каталога рецептов. */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.card {
+  padding: 22px;
+
+  border: 1px solid #d8cfc5;
+  border-radius: 12px;
+
+  background: rgb(255 255 255 / 94%);
+  box-shadow: 0 3px 12px rgb(47 42 37 / 5%);
+}
+
+.card h2 {
+  margin-top: 0;
+}
+
+.card a {
+  color: #8b4a2f;
+  font-weight: 700;
+}
+
+.card a:focus-visible {
+  outline: 3px solid #8b4a2f;
+  outline-offset: 4px;
+}
+
+
+/* Краткие сведения о рецепте. */
+.recipe-info {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px 24px;
+  max-width: 520px;
+  margin: 0;
+}
+
+.recipe-info dt {
+  font-weight: 700;
+}
+
+.recipe-info dd {
+  margin: 0;
+}
+
+
+/* Основной список ингредиентов. */
+.ingredient-list {
+  width: 100%;
+  max-width: 720px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ingredient-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 10px 0;
+  border-bottom: 1px solid #e4dcd3;
+}
+
+.ingredient-list strong {
+  flex-shrink: 0;
+}
+
+
+/* Этапы приготовления. */
+.recipe-steps {
+  width: 100%;
+  max-width: 720px;
+  padding-left: 28px;
+}
+
+.recipe-steps > li {
+  margin-bottom: 24px;
+}
+
+.recipe-steps > li > p {
+  margin-bottom: 8px;
+}
+
+.step-ingredients {
+  width: 100%;
+  margin: 0;
+  padding: 10px 16px 10px 32px;
+
+  border-left: 3px solid #c98b62;
+
+  background: #faf5ef;
+}
+
+.step-ingredients li {
+  margin: 4px 0;
+}
+
+
+/* Небольшая адаптация узких окон. */
+@media (max-width: 520px) {
+  .recipe-info {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .recipe-info dd {
+    margin-bottom: 12px;
+  }
+
+  .ingredient-list li {
+    align-items: baseline;
+  }
+}
+
+/* Общая навигация приложения. */
+.site-header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 24px;
+
+  min-height: 72px;
+  padding: 12px 24px;
+
+  border-bottom: 1px solid #d8cfc5;
+  background: #ffffff;
+  box-shadow: 0 2px 10px rgb(47 42 37 / 6%);
+}
+
+.brand {
+  justify-self: start;
+
+  color: #2f2a25;
+  font-size: 22px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.site-nav {
+  justify-self: center;
+}
+
+.nav-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.nav-link {
+  display: inline-block;
+  padding: 8px 10px;
+
+  border-radius: 8px;
+
+  color: #8b4a2f;
+  text-decoration: none;
+}
+
+.nav-link:hover {
+  background: #f7eee7;
+}
+
+.nav-link[aria-current="page"] {
+  background: #f0e3d9;
+  color: #6f3824;
+  font-weight: 700;
+}
+
+.brand:focus-visible,
+.nav-link:focus-visible,
+.auth-area button:focus-visible {
+  outline: 3px solid #8b4a2f;
+  outline-offset: 3px;
+}
+
+.auth-area {
+  display: flex;
+  align-items: center;
+  justify-self: end;
+  gap: 16px;
+}
+
+.auth-area button {
+  padding: 8px 12px;
+
+  border: 1px solid #8b4a2f;
+  border-radius: 8px;
+
+  background: #ffffff;
+  color: #8b4a2f;
+
+  font: inherit;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.auth-area button:hover {
+  background: #f0e3d9;
+}
+
+/* Личный кабинет */
+.auth-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.auth-summary a,
+.login-link {
+  color: #8b4a2f;
+  font-weight: 700;
+}
+
+.auth-summary button,
+.secondary-button {
+  padding: 8px 12px;
+  border: 1px solid #8b4a2f;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #8b4a2f;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.auth-summary button:hover,
+.secondary-button:hover {
+  background: #f0e3d9;
+}
+
+.login-link {
+  margin-left: auto;
+}
+
+.profile-list {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 10px 20px;
+  max-width: 520px;
+  margin-bottom: 24px;
+}
+
+.profile-list dt {
+  font-weight: 700;
+}
+
+.profile-list dd {
+  margin: 0;
 }
