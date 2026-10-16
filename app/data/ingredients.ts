@@ -23,6 +23,21 @@ export const ingredients: Ingredient[] = [
   { id: "carrot", name: "Морковь" },
   { id: "onion", name: "Репчатый лук" },
   { id: "water", name: "Вода" },
+
+  { id: "cottage-cheese", name: "Творог" },
+  { id: "starch", name: "Крахмал" },
+  { id: "sour-cream", name: "Сметана" },
+  { id: "vanillin", name: "Ванилин" },
+  { id: "lemon-zest", name: "Цедра лимона" },
+  { id: "orange-zest", name: "Цедра апельсина" },
+
+  { id: "hunting-sausages", name: "Охотничьи сосиски" },
+  { id: "creamy-sausages", name: "Сливочные сосиски" },
+  { id: "ham", name: "Ветчина" },
+  { id: "tomato-paste", name: "Томатная паста" },
+  { id: "dill", name: "Укроп" },
+  { id: "parsley", name: "Петрушка" },
+
 ];
 
 export function getIngredient(id: string): Ingredient | undefined {

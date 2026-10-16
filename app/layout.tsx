@@ -1,7 +1,9 @@
+
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+
 import "./globals.css";
-import AppNav from "./ui/AppNav";
+import BurgerMenu from "./ui/BurgerMenu/BurgerMenu";
 import DemoAuthProvider from "./providers/DemoAuthProvider";
 
 export const metadata: Metadata = {
@@ -13,12 +15,14 @@ type RootLayoutProps = Readonly<{
   children: ReactNode;
 }>;
 
-export default function RootLayout({ children }: RootLayoutProps) {
+export default function RootLayout({
+  children,
+}: RootLayoutProps) {
   return (
     <html lang="ru">
       <body>
         <DemoAuthProvider>
-          <AppNav />
+          <BurgerMenu />
           {children}
         </DemoAuthProvider>
       </body>
