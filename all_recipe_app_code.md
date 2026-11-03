@@ -1,8 +1,8 @@
 # Recipe App Code Snapshot
 
-Generated: 2026-10-16 12:13
+Generated: 2026-10-31 22:19
 
-Files: 29
+Files: 28
 
 # ./app/about/page.tsx
 
@@ -1576,8 +1576,10 @@ export function getRecipe(id: string): Recipe | undefined {
   cursor: pointer;
 }
 
-.placeButton:hover {
-  background: #f7eee7;
+@media (hover: hover) and (pointer: fine) {
+  .placeButton:hover {
+    background: #f7eee7;
+  }
 }
 
 .placeButton[aria-pressed="true"] {
@@ -1643,8 +1645,10 @@ export function getRecipe(id: string): Recipe | undefined {
   cursor: pointer;
 }
 
-.recipeButton:hover {
-  background: #f0e3d9;
+@media (hover: hover) and (pointer: fine) {
+  .recipeButton:hover {
+    background: #f0e3d9;
+  }
 }
 
 .status {
@@ -1670,13 +1674,39 @@ export function getRecipe(id: string): Recipe | undefined {
 
 @media (max-width: 720px) {
   .layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .map {
     min-height: 360px;
   }
 }
+
+/* На телефоне карта занимает ширину секции почти до её границ. */
+@media (max-width: 480px) {
+  .section {
+    margin-top: 24px;
+  }
+
+  .layout {
+    gap: 16px;
+    margin-top: 16px;
+  }
+
+  .map {
+   width: calc(100% + 28px);
+    margin-inline: -14px;
+    min-height: 320px;
+    border-left: 0;
+    border-right: 0;
+    border-radius: 0;
+  }
+
+  .details {
+    padding: 12px;
+  }
+}
+
 
 .selectHint {
   margin: -8px 0 20px;
@@ -1721,6 +1751,9 @@ type YandexPlacemark = {
 };
 
 type YandexMap = {
+  container: {
+    fitToViewport: () => void;
+  };
   geoObjects: {
     add: (placemark: YandexPlacemark) => void;
   };
@@ -1800,6 +1833,7 @@ export default function FoodMap({
   );
 
   const [scriptReady, setScriptReady] = useState(false);
+  const [shouldLoadMap, setShouldLoadMap] = useState(false);
   const [mapStatus, setMapStatus] = useState<
     "loading" | "ready" | "error"
   >("loading");
@@ -1809,6 +1843,33 @@ export default function FoodMap({
 
   const apiKey =
     process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY ?? "";
+
+  // До появления карты рядом с областью просмотра не загружаем тяжёлый API.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!apiKey || !container || shouldLoadMap) {
+      return;
+    }
+
+    // Резервный вариант для браузера без IntersectionObserver.
+    if (typeof IntersectionObserver === "undefined") {
+      const timer = window.setTimeout(() => setShouldLoadMap(true), 0);
+      return () => window.clearTimeout(timer);
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setShouldLoadMap(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "200px 0px" },
+    );
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [apiKey, shouldLoadMap]);
 
   // Создаём карту только после загрузки внешнего API.
   useEffect(() => {
@@ -1822,8 +1883,13 @@ export default function FoodMap({
       return;
     }
 
+    // Сохраняем ссылку на коллекцию меток для очистки.
+    const placemarks = placemarkRefs.current;
+
     let disposed = false;
     let map: YandexMap | null = null;
+    let resizeObserver: ResizeObserver | null = null;
+    let resizeFrame: number | null = null;
 
     ymaps.ready(
       () => {
@@ -1839,7 +1905,24 @@ export default function FoodMap({
           });
 
           mapRef.current = map;
-            placemarkRefs.current.clear();
+          placemarkRefs.current.clear();
+
+          // После изменения размеров контейнера сообщаем карте новую ширину.
+          if (typeof ResizeObserver !== "undefined") {
+            resizeObserver = new ResizeObserver(() => {
+              if (resizeFrame !== null) {
+                cancelAnimationFrame(resizeFrame);
+              }
+
+              resizeFrame = requestAnimationFrame(() => {
+                if (!disposed) {
+                  map?.container.fitToViewport();
+                }
+                resizeFrame = null;
+              });
+            });
+            resizeObserver.observe(containerRef.current);
+          }
 
           places.forEach((place) => {
             const placemark = new ymaps.Placemark(
@@ -1854,7 +1937,7 @@ export default function FoodMap({
             );
 
             // Запоминаем метку для последующего изменения её вида.
-              placemarkRefs.current.set(place.id, placemark);
+            placemarkRefs.current.set(place.id, placemark);
 
             // Метка выбирает место, связанное с рецептами.
             placemark.events.add("click", () => {
@@ -1882,12 +1965,21 @@ export default function FoodMap({
     return () => {
       disposed = true;
 
-      placemarkRefs.current.clear();
+      // Отключаем наблюдение за размерами контейнера.
+      resizeObserver?.disconnect();
+
+      // Отменяем запланированный пересчёт размеров.
+      if (resizeFrame !== null) {
+        cancelAnimationFrame(resizeFrame);
+      }
+
+      // Очищаем метки и освобождаем карту.
+      placemarks.clear();
       mapRef.current = null;
 
       map?.destroy();
     };
-  }, [apiKey, scriptReady, places]);
+    }, [apiKey, scriptReady, places]);
 
   useEffect(() => {
     // Ждём, пока Яндекс Карты полностью инициализируются.
@@ -1922,7 +2014,9 @@ export default function FoodMap({
     void map.panTo(
       [selectedPlace.latitude, selectedPlace.longitude],
       {
-        duration: 350,
+        duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? 0
+          : 350,
         flying: false,
       },
     );
@@ -1956,14 +2050,20 @@ export default function FoodMap({
         </p>
       ) : (
         <>
-          <Script
-            src={`https://api-maps.yandex.ru/2.1/?apikey=${encodeURIComponent(apiKey)}&lang=ru_RU`}
-            strategy="afterInteractive"
-            onReady={() => setScriptReady(true)}
-            onError={() => setMapStatus("error")}
-          />
+          {shouldLoadMap ? (
+            <Script
+              src={`https://api-maps.yandex.ru/2.1/?apikey=${encodeURIComponent(apiKey)}&lang=ru_RU`}
+              strategy="afterInteractive"
+              onReady={() => setScriptReady(true)}
+              onError={() => setMapStatus("error")}
+            />
+          ) : (
+            <p className={styles.status} role="status">
+              Карта загрузится при прокрутке к этому разделу.
+            </p>
+          )}
 
-          {mapStatus === "loading" ? (
+          {shouldLoadMap && mapStatus === "loading" ? (
             <p className={styles.status} role="status">
               Карта загружается…
             </p>
@@ -1982,6 +2082,7 @@ export default function FoodMap({
         <div
           ref={containerRef}
           className={styles.map}
+          role="region"
           aria-label="Карта мест рядом с ГУАП"
         />
 
@@ -2137,8 +2238,10 @@ export default function FoodMap({
   cursor: pointer;
 }
 
-.closeButton:hover {
-  background: #f0e3d9;
+@media (hover: hover) and (pointer: fine) {
+  .closeButton:hover {
+    background: #f0e3d9;
+  }
 }
 
 .imageWrap {
@@ -2219,8 +2322,10 @@ export default function FoodMap({
   text-decoration: none;
 }
 
-.recipeLink:hover {
-  background: #713b27;
+@media (hover: hover) and (pointer: fine) {
+  .recipeLink:hover {
+    background: #713b27;
+  }
 }
 
 .recipeLink:focus-visible,
@@ -2252,33 +2357,6 @@ export default function FoodMap({
   }
 }
 
-/* Будущая навигация между рецептами. */
-.navigation {
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-
-  margin-bottom: 20px;
-}
-
-.navButton {
-  min-height: 40px;
-  padding: 8px 14px;
-
-  border: 1px solid #d8cfc5;
-  border-radius: 8px;
-
-  background: #f7f3ed;
-  color: #665b52;
-
-  font: inherit;
-}
-
-.navButton:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
 
 /* Кнопка управления избранным. */
 .favoriteButton {
@@ -2297,8 +2375,10 @@ export default function FoodMap({
   cursor: pointer;
 }
 
-.favoriteButton:hover {
-  background: #f7eee7;
+@media (hover: hover) and (pointer: fine) {
+  .favoriteButton:hover {
+    background: #f7eee7;
+  }
 }
 
 .favoriteButton[aria-pressed="true"] {
@@ -2379,6 +2459,9 @@ export default function RecipeModal({
   const descriptionId = useId();
 
   useEffect(() => {
+    // Запоминаем элемент, открывший модальное окно.
+    const returnFocusButton = returnFocusRef.current;
+
     // Запоминаем исходное состояние прокрутки страницы.
     const previousOverflow = document.body.style.overflow;
 
@@ -2440,7 +2523,7 @@ export default function RecipeModal({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = previousOverflow;
-      returnFocusRef.current?.focus();
+      returnFocusButton?.focus();
     };
   }, [onClose, returnFocusRef]);
 
@@ -2487,7 +2570,7 @@ export default function RecipeModal({
               src={recipe.image}
               alt={recipe.imageAlt}
               fill
-              sizes="(max-width: 720px) calc(100vw - 64px), 632px"
+              sizes="(max-width: 480px) calc(100vw - 48px), (max-width: 720px) calc(100vw - 80px), 632px"
               className={styles.image}
             />
           ) : (
@@ -2498,28 +2581,6 @@ export default function RecipeModal({
         </div>
 
         <div className={styles.content}>
-            <nav
-                className={styles.navigation}
-                aria-label="Переключение между рецептами"
-                >
-                <button
-                    className={styles.navButton}
-                    type="button"
-                    disabled
-                    title="Функция появится позже"
-                >
-                    ← Предыдущий
-                </button>
-
-                <button
-                    className={styles.navButton}
-                    type="button"
-                    disabled
-                    title="Функция появится позже"
-                >
-                    Следующий →
-                </button>
-            </nav>
             <p id={descriptionId}>{recipe.summary}</p>
 
             <dl className={styles.info}>
@@ -2669,7 +2730,8 @@ export default function RecipesGallery({
                   src={recipe.image}
                   alt={recipe.imageAlt}
                   fill
-                  sizes="(max-width: 640px) 100vw, (max-width: 960px) 50vw, 33vw"
+                  sizes="(max-width: 530px) calc(100vw - 24px), (max-width: 790px) calc(50vw - 24px), 300px"
+                  loading={recipe.id === "pancakes" ? "eager" : "lazy"}
                   className={styles.image}
                 />
               ) : (
@@ -2760,7 +2822,13 @@ export default function RecipesGallery({
 
 .card:hover {
   border-color: #8b4a2f;
-  background: #faf5ef;
+  @media (hover: hover) and (pointer: fine) {
+    .card:hover {
+      border-color: #8b4a2f;
+      background: #faf5ef;
+    
+    }
+  }
 }
 
 .card:focus-visible,
@@ -2926,7 +2994,7 @@ main > section {
   border: 1px solid #d8cfc5;
   border-radius: 14px;
 
-  background: rgb(255 255 255 / 92%);
+  background: rgb(255 255 255 / 70%);
   box-shadow: 0 4px 18px rgb(47 42 37 / 6%);
 }
 
@@ -2949,7 +3017,7 @@ main > section {
   border: 1px solid #d8cfc5;
   border-radius: 12px;
 
-  background: rgb(255 255 255 / 94%);
+  background: rgb(255 255 255 / 70%);
   box-shadow: 0 3px 12px rgb(47 42 37 / 5%);
 }
 
@@ -2982,7 +3050,7 @@ main > section {
   border: 1px solid #d8cfc5;
   border-radius: 12px;
 
-  background: rgb(255 255 255 / 94%);
+  background: rgb(255 255 255 / 70%);
   box-shadow: 0 3px 12px rgb(47 42 37 / 5%);
 }
 
@@ -3087,133 +3155,30 @@ main > section {
   }
 }
 
-/* Общая навигация приложения. */
-.site-header {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 24px;
-
-  min-height: 72px;
-  padding: 12px 24px;
-
-  border-bottom: 1px solid #d8cfc5;
-  background: #ffffff;
-  box-shadow: 0 2px 10px rgb(47 42 37 / 6%);
-}
-
-.brand {
-  justify-self: start;
-
-  color: #2f2a25;
-  font-size: 22px;
-  font-weight: 800;
-  text-decoration: none;
-}
-
-.site-nav {
-  justify-self: center;
-}
-
-.nav-list {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-
-  margin: 0;
-  padding: 0;
-
-  list-style: none;
-}
-
-.nav-link {
-  display: inline-block;
-  padding: 8px 10px;
-
-  border-radius: 8px;
-
-  color: #8b4a2f;
-  text-decoration: none;
-}
-
-.nav-link:hover {
-  background: #f7eee7;
-}
-
-.nav-link[aria-current="page"] {
-  background: #f0e3d9;
-  color: #6f3824;
-  font-weight: 700;
-}
-
-.brand:focus-visible,
-.nav-link:focus-visible,
-.auth-area button:focus-visible {
-  outline: 3px solid #8b4a2f;
-  outline-offset: 3px;
-}
-
-.auth-area {
-  display: flex;
-  align-items: center;
-  justify-self: end;
-  gap: 16px;
-}
-
-.auth-area button {
-  padding: 8px 12px;
-
-  border: 1px solid #8b4a2f;
-  border-radius: 8px;
-
-  background: #ffffff;
-  color: #8b4a2f;
-
-  font: inherit;
-  font-weight: 700;
-
-  cursor: pointer;
-}
-
-.auth-area button:hover {
-  background: #f0e3d9;
-}
-
-/* Личный кабинет */
-.auth-summary {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-left: auto;
-}
-
-.auth-summary a,
-.login-link {
-  color: #8b4a2f;
-  font-weight: 700;
-}
-
-.auth-summary button,
+/* Кнопка выхода в личном кабинете. */
 .secondary-button {
   padding: 8px 12px;
+
   border: 1px solid #8b4a2f;
   border-radius: 8px;
+
   background: #ffffff;
   color: #8b4a2f;
+
   font: inherit;
   font-weight: 700;
   cursor: pointer;
 }
 
-.auth-summary button:hover,
 .secondary-button:hover {
   background: #f0e3d9;
 }
 
-.login-link {
-  margin-left: auto;
+.secondary-button:focus-visible {
+  outline: 3px solid #8b4a2f;
+  outline-offset: 3px;
 }
+
 
 .profile-list {
   display: grid;
@@ -3229,6 +3194,39 @@ main > section {
 
 .profile-list dd {
   margin: 0;
+}
+
+/* ЛР4: более компактная раскладка на узком экране. */
+@media (max-width: 480px) {
+  main {
+    width: calc(100% - 24px);
+    padding-block: 24px;
+  }
+
+  h1 {
+    font-size: clamp(28px, 8vw, 36px);
+  }
+
+  main > section {
+    padding: 14px;
+    margin-bottom: 20px;
+  }
+
+  main > header {
+    margin-bottom: 24px;
+  }
+}
+
+/* Уважаем системную настройку уменьшения движения. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 ```
 
@@ -3397,8 +3395,10 @@ export function useDemoAuth(): DemoAuthContextValue {
   cursor: pointer;
 }
 
-.resetButton:hover {
-  background: #f0e3d9;
+@media (hover: hover) and (pointer: fine) {
+  .resetButton:hover {
+    background: #f0e3d9;
+  }
 }
 
 .ingredientList {
@@ -3492,9 +3492,11 @@ export function useDemoAuth(): DemoAuthContextValue {
   cursor: pointer;
 }
 
-.menuButton:hover {
-  border-color: #d8cfc5;
-  background: #f7eee7;
+@media (hover: hover) and (pointer: fine) {
+  .menuButton:hover {
+    border-color: #d8cfc5;
+    background: #f7eee7;
+  }
 }
 
 .actionMenu {
@@ -3530,8 +3532,10 @@ export function useDemoAuth(): DemoAuthContextValue {
   cursor: pointer;
 }
 
-.actionMenu button:hover {
-  background: #f7eee7;
+@media (hover: hover) and (pointer: fine) {
+  .actionMenu button:hover {
+    background: #f7eee7;
+  }
 }
 
 .editError {
@@ -4363,94 +4367,18 @@ export default function HomePage() {
 }
 ```
 
-# ./app/ui/AppNav.tsx
-
-```tsx
-"use client";
-
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useDemoAuth } from "../providers/DemoAuthProvider";
-
-const links = [
-  { href: "/start", label: "Главная" },
-  { href: "/recipes", label: "Рецепты" },
-  { href: "/gallery", label: "Галерея" },
-  { href: "/about", label: "О проекте" },
-];
-
-function isActive(pathname: string, href: string): boolean {
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
-export default function AppNav() {
-  const pathname = usePathname();
-  const { user, logout } = useDemoAuth();
-
-  return (
-    <header className="site-header">
-      <Link className="brand" href="/start">
-        Электронная книга рецептов
-      </Link>
-
-      <nav className="site-nav" aria-label="Основная навигация">
-        <ul className="nav-list">
-          {links.map((link) => (
-            <li key={link.href}>
-              <Link
-                className="nav-link"
-                href={link.href}
-                aria-current={
-                  isActive(pathname, link.href) ? "page" : undefined
-                }
-              >
-                {link.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
-
-      <div className="auth-area">
-        {user ? (
-          <>
-            <Link
-              className="nav-link"
-              href="/account"
-              aria-current={
-                isActive(pathname, "/account") ? "page" : undefined
-              }
-            >
-              {user.name}
-            </Link>
-
-            <button type="button" onClick={logout}>
-              Выйти
-            </button>
-          </>
-        ) : (
-          <Link
-            className="nav-link"
-            href="/auth/login"
-            aria-current={
-              pathname.startsWith("/auth/") ? "page" : undefined
-            }
-          >
-            Войти
-          </Link>
-        )}
-      </div>
-    </header>
-  );
-}
-```
-
 # ./app/ui/BurgerMenu/BurgerMenu.module.css
 
 ```css
 
 /* Верхняя панель приложения. */
 .header {
+  /* Остаётся у верхнего края при прокрутке и плавно прячется вниз. */
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  transition: top 200ms ease;
+
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -4464,6 +4392,12 @@ export default function AppNav() {
 
   background: #ffffff;
   box-shadow: 0 2px 10px rgb(47 42 37 / 6%);
+}
+
+/* Скрываем шапку выше видимой области, не используя transform.
+   Иначе fixed-оверлей вложенного меню может потерять привязку к viewport. */
+.headerHidden {
+  top: -120px;
 }
 
 .brand {
@@ -4495,8 +4429,10 @@ export default function AppNav() {
   cursor: pointer;
 }
 
-.menuButton:hover {
-  background: #f0e3d9;
+@media (hover: hover) and (pointer: fine) {
+  .menuButton:hover {
+    background: #f0e3d9;
+  }
 }
 
 .menuButton span:first-child {
@@ -4523,7 +4459,7 @@ export default function AppNav() {
 
 /* Выдвижная панель справа. */
 .panel {
-  width: min(400px, 100%);
+  width: min(400px, 90vw);
   height: 100dvh;
   overflow-y: auto;
 
@@ -4569,8 +4505,10 @@ export default function AppNav() {
   cursor: pointer;
 }
 
-.closeButton:hover {
-  background: #f0e3d9;
+@media (hover: hover) and (pointer: fine) {
+  .closeButton:hover {
+    background: #f0e3d9;
+  }
 }
 
 /* Основные пункты меню. */
@@ -4591,8 +4529,10 @@ export default function AppNav() {
   text-decoration: none;
 }
 
-.navLink:hover {
-  background: #f7eee7;
+@media (hover: hover) and (pointer: fine) {
+  .navLink:hover {
+    background: #f7eee7;
+  }
 }
 
 .navLink[aria-current="page"],
@@ -4648,9 +4588,40 @@ export default function AppNav() {
   cursor: pointer;
 }
 
-.loginLink:hover,
-.logoutButton:hover {
-  background: #713b27;
+@media (hover: hover) and (pointer: fine) {
+  .loginLink:hover,
+  .logoutButton:hover {
+    background: #713b27;
+  }
+}
+
+/* Кнопка возврата наверх появляется при обратной прокрутке. */
+.backToTop {
+  position: fixed;
+  right: calc(16px + env(safe-area-inset-right, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 90;
+
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+
+  border: 0;
+  border-radius: 50%;
+  background: #8b4a2f;
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgb(47 42 37 / 25%);
+
+  font: inherit;
+  font-size: 28px;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .backToTop:hover {
+    background: #713b27;
+  }
 }
 
 /* Управление с клавиатуры. */
@@ -4659,7 +4630,8 @@ export default function AppNav() {
 .closeButton:focus-visible,
 .navLink:focus-visible,
 .loginLink:focus-visible,
-.logoutButton:focus-visible {
+.logoutButton:focus-visible,
+.backToTop:focus-visible {
   outline: 3px solid #8b4a2f;
   outline-offset: 3px;
 }
@@ -4676,6 +4648,12 @@ export default function AppNav() {
 
   .menuButton {
     padding: 9px 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header {
+    transition: none;
   }
 }
 ```
@@ -4718,6 +4696,8 @@ export default function BurgerMenu() {
   const { user, logout } = useDemoAuth();
 
   const [isOpen, setIsOpen] = useState(false);
+  const [showHeader, setShowHeader] = useState(true);
+  const [pastScrollThreshold, setPastScrollThreshold] = useState(false);
 
   const panelId = useId();
   const titleId = useId();
@@ -4730,11 +4710,53 @@ export default function BurgerMenu() {
   const closeMenu = useCallback(() => {
     setIsOpen(false);
   }, []);
+ 
+  // Показываем шапку при движении вверх, скрываем при движении вниз.
+  useEffect(() => {
+    let lastDirectionY = window.scrollY;
+
+    function handleScroll() {
+      const y = Math.max(0, window.scrollY);
+      setPastScrollThreshold(y > 400);
+
+      // Рядом с началом страницы шапка всегда видима.
+      if (y <= 120) {
+        setShowHeader(true);
+        lastDirectionY = y;
+        return;
+      }
+
+      const delta = y - lastDirectionY;
+      if (Math.abs(delta) >= 8) {
+        setShowHeader(delta < 0);
+        lastDirectionY = y;
+      }
+    }
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  function scrollToTop() {
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    window.scrollTo({
+      top: 0,
+      behavior: reducedMotion ? "auto" : "smooth",
+    });
+  }
+
 
   useEffect(() => {
     if (!isOpen) {
       return;
     }
+
+    // Запоминаем кнопку, открывшую меню.
+    const triggerButton = triggerRef.current;
 
     // Запоминаем прежний режим прокрутки.
     const previousOverflow = document.body.style.overflow;
@@ -4798,7 +4820,7 @@ export default function BurgerMenu() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = previousOverflow;
-      triggerRef.current?.focus();
+      triggerButton?.focus();
     };
   }, [isOpen, closeMenu]);
 
@@ -4808,7 +4830,10 @@ export default function BurgerMenu() {
   }
 
   return (
-    <header className={styles.header}>
+    <>
+    <header
+      className={`${styles.header} ${!showHeader && !isOpen ? styles.headerHidden : ""}`}
+    >
       <Link className={styles.brand} href="/start">
         Электронная книга рецептов
       </Link>
@@ -4915,6 +4940,18 @@ export default function BurgerMenu() {
         </div>
       </div>
     </header>
+    {pastScrollThreshold && showHeader && !isOpen ? (
+      <button
+        type="button"
+        className={styles.backToTop}
+        aria-label="Вернуться к началу страницы"
+        title="Наверх"
+        onClick={scrollToTop}
+      >
+        <span aria-hidden="true">↑</span>
+      </button>
+    ) : null}
+    </>
   );
 }
 ```
