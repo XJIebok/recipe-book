@@ -49,8 +49,10 @@
   cursor: pointer;
 }
 
-.placeButton:hover {
-  background: #f7eee7;
+@media (hover: hover) and (pointer: fine) {
+  .placeButton:hover {
+    background: #f7eee7;
+  }
 }
 
 .placeButton[aria-pressed="true"] {
@@ -116,8 +118,10 @@
   cursor: pointer;
 }
 
-.recipeButton:hover {
-  background: #f0e3d9;
+@media (hover: hover) and (pointer: fine) {
+  .recipeButton:hover {
+    background: #f0e3d9;
+  }
 }
 
 .status {
@@ -143,13 +147,39 @@
 
 @media (max-width: 720px) {
   .layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .map {
     min-height: 360px;
   }
 }
+
+/* На телефоне карта занимает ширину секции почти до её границ. */
+@media (max-width: 480px) {
+  .section {
+    margin-top: 24px;
+  }
+
+  .layout {
+    gap: 16px;
+    margin-top: 16px;
+  }
+
+  .map {
+   width: calc(100% + 28px);
+    margin-inline: -14px;
+    min-height: 320px;
+    border-left: 0;
+    border-right: 0;
+    border-radius: 0;
+  }
+
+  .details {
+    padding: 12px;
+  }
+}
+
 
 .selectHint {
   margin: -8px 0 20px;

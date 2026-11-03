@@ -51,7 +51,7 @@ main > section {
   border: 1px solid #d8cfc5;
   border-radius: 14px;
 
-  background: rgb(255 255 255 / 92%);
+  background: rgb(255 255 255 / 70%);
   box-shadow: 0 4px 18px rgb(47 42 37 / 6%);
 }
 
@@ -74,7 +74,7 @@ main > section {
   border: 1px solid #d8cfc5;
   border-radius: 12px;
 
-  background: rgb(255 255 255 / 94%);
+  background: rgb(255 255 255 / 70%);
   box-shadow: 0 3px 12px rgb(47 42 37 / 5%);
 }
 
@@ -107,7 +107,7 @@ main > section {
   border: 1px solid #d8cfc5;
   border-radius: 12px;
 
-  background: rgb(255 255 255 / 94%);
+  background: rgb(255 255 255 / 70%);
   box-shadow: 0 3px 12px rgb(47 42 37 / 5%);
 }
 
@@ -251,4 +251,44 @@ main > section {
 
 .profile-list dd {
   margin: 0;
+}
+
+/* ЛР4: более компактная раскладка на узком экране. */
+@media (max-width: 480px) {
+  main {
+    width: calc(100% - 24px);
+    padding-block: 24px;
+  }
+
+  h1 {
+    font-size: clamp(28px, 8vw, 36px);
+  }
+
+  main > section {
+    padding: 14px;
+    margin-bottom: 20px;
+  }
+
+  main > header {
+    margin-bottom: 24px;
+  }
+}
+
+/* Уважаем системную настройку уменьшения движения. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Убираем стандартную подсветку касания,
+   сохраняя видимый фокус при работе с клавиатурой. */
+a,
+button {
+  -webkit-tap-highlight-color: transparent;
 }

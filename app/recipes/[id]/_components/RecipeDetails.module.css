@@ -30,8 +30,10 @@
   cursor: pointer;
 }
 
-.resetButton:hover {
-  background: #f0e3d9;
+@media (hover: hover) and (pointer: fine) {
+  .resetButton:hover {
+    background: #f0e3d9;
+  }
 }
 
 .ingredientList {
@@ -125,9 +127,11 @@
   cursor: pointer;
 }
 
-.menuButton:hover {
-  border-color: #d8cfc5;
-  background: #f7eee7;
+@media (hover: hover) and (pointer: fine) {
+  .menuButton:hover {
+    border-color: #d8cfc5;
+    background: #f7eee7;
+  }
 }
 
 .actionMenu {
@@ -163,8 +167,10 @@
   cursor: pointer;
 }
 
-.actionMenu button:hover {
-  background: #f7eee7;
+@media (hover: hover) and (pointer: fine) {
+  .actionMenu button:hover {
+    background: #f7eee7;
+  }
 }
 
 .editError {

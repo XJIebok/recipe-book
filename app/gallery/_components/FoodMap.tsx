@@ -29,6 +29,9 @@ type YandexPlacemark = {
 };
 
 type YandexMap = {
+  container: {
+    fitToViewport: () => void;
+  };
   geoObjects: {
     add: (placemark: YandexPlacemark) => void;
   };
@@ -108,6 +111,7 @@ export default function FoodMap({
   );
 
   const [scriptReady, setScriptReady] = useState(false);
+  const [shouldLoadMap, setShouldLoadMap] = useState(false);
   const [mapStatus, setMapStatus] = useState<
     "loading" | "ready" | "error"
   >("loading");
@@ -117,6 +121,33 @@ export default function FoodMap({
 
   const apiKey =
     process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY ?? "";
+
+  // До появления карты рядом с областью просмотра не загружаем тяжёлый API.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!apiKey || !container || shouldLoadMap) {
+      return;
+    }
+
+    // Резервный вариант для браузера без IntersectionObserver.
+    if (typeof IntersectionObserver === "undefined") {
+      const timer = window.setTimeout(() => setShouldLoadMap(true), 0);
+      return () => window.clearTimeout(timer);
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setShouldLoadMap(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "200px 0px" },
+    );
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [apiKey, shouldLoadMap]);
 
   // Создаём карту только после загрузки внешнего API.
   useEffect(() => {
@@ -135,6 +166,8 @@ export default function FoodMap({
 
     let disposed = false;
     let map: YandexMap | null = null;
+    let resizeObserver: ResizeObserver | null = null;
+    let resizeFrame: number | null = null;
 
     ymaps.ready(
       () => {
@@ -150,7 +183,24 @@ export default function FoodMap({
           });
 
           mapRef.current = map;
-            placemarkRefs.current.clear();
+          placemarkRefs.current.clear();
+
+          // После изменения размеров контейнера сообщаем карте новую ширину.
+          if (typeof ResizeObserver !== "undefined") {
+            resizeObserver = new ResizeObserver(() => {
+              if (resizeFrame !== null) {
+                cancelAnimationFrame(resizeFrame);
+              }
+
+              resizeFrame = requestAnimationFrame(() => {
+                if (!disposed) {
+                  map?.container.fitToViewport();
+                }
+                resizeFrame = null;
+              });
+            });
+            resizeObserver.observe(containerRef.current);
+          }
 
           places.forEach((place) => {
             const placemark = new ymaps.Placemark(
@@ -165,7 +215,7 @@ export default function FoodMap({
             );
 
             // Запоминаем метку для последующего изменения её вида.
-              placemarkRefs.current.set(place.id, placemark);
+            placemarkRefs.current.set(place.id, placemark);
 
             // Метка выбирает место, связанное с рецептами.
             placemark.events.add("click", () => {
@@ -193,12 +243,21 @@ export default function FoodMap({
     return () => {
       disposed = true;
 
+      // Отключаем наблюдение за размерами контейнера.
+      resizeObserver?.disconnect();
+
+      // Отменяем запланированный пересчёт размеров.
+      if (resizeFrame !== null) {
+        cancelAnimationFrame(resizeFrame);
+      }
+
+      // Очищаем метки и освобождаем карту.
       placemarks.clear();
       mapRef.current = null;
 
       map?.destroy();
     };
-  }, [apiKey, scriptReady, places]);
+    }, [apiKey, scriptReady, places]);
 
   useEffect(() => {
     // Ждём, пока Яндекс Карты полностью инициализируются.
@@ -233,7 +292,9 @@ export default function FoodMap({
     void map.panTo(
       [selectedPlace.latitude, selectedPlace.longitude],
       {
-        duration: 350,
+        duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? 0
+          : 350,
         flying: false,
       },
     );
@@ -267,14 +328,20 @@ export default function FoodMap({
         </p>
       ) : (
         <>
-          <Script
-            src={`https://api-maps.yandex.ru/2.1/?apikey=${encodeURIComponent(apiKey)}&lang=ru_RU`}
-            strategy="afterInteractive"
-            onReady={() => setScriptReady(true)}
-            onError={() => setMapStatus("error")}
-          />
+          {shouldLoadMap ? (
+            <Script
+              src={`https://api-maps.yandex.ru/2.1/?apikey=${encodeURIComponent(apiKey)}&lang=ru_RU`}
+              strategy="afterInteractive"
+              onReady={() => setScriptReady(true)}
+              onError={() => setMapStatus("error")}
+            />
+          ) : (
+            <p className={styles.status} role="status">
+              Карта загрузится при прокрутке к этому разделу.
+            </p>
+          )}
 
-          {mapStatus === "loading" ? (
+          {shouldLoadMap && mapStatus === "loading" ? (
             <p className={styles.status} role="status">
               Карта загружается…
             </p>
@@ -293,6 +360,7 @@ export default function FoodMap({
         <div
           ref={containerRef}
           className={styles.map}
+          role="region"
           aria-label="Карта мест рядом с ГУАП"
         />
 

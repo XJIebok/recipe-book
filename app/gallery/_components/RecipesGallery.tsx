@@ -88,7 +88,7 @@ export default function RecipesGallery({
                   src={recipe.image}
                   alt={recipe.imageAlt}
                   fill
-                  sizes="(max-width: 640px) 100vw, (max-width: 960px) 50vw, 33vw"
+                  sizes="(max-width: 530px) calc(100vw - 24px), (max-width: 790px) calc(50vw - 24px), 300px"
                   loading={recipe.id === "pancakes" ? "eager" : "lazy"}
                   className={styles.image}
                 />

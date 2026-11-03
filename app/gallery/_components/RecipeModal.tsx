@@ -151,7 +151,7 @@ export default function RecipeModal({
               src={recipe.image}
               alt={recipe.imageAlt}
               fill
-              sizes="(max-width: 720px) calc(100vw - 64px), 632px"
+              sizes="(max-width: 480px) calc(100vw - 48px), (max-width: 720px) calc(100vw - 80px), 632px"
               className={styles.image}
             />
           ) : (
@@ -162,28 +162,6 @@ export default function RecipeModal({
         </div>
 
         <div className={styles.content}>
-            <nav
-                className={styles.navigation}
-                aria-label="Переключение между рецептами"
-                >
-                <button
-                    className={styles.navButton}
-                    type="button"
-                    disabled
-                    title="Функция появится позже"
-                >
-                    ← Предыдущий
-                </button>
-
-                <button
-                    className={styles.navButton}
-                    type="button"
-                    disabled
-                    title="Функция появится позже"
-                >
-                    Следующий →
-                </button>
-            </nav>
             <p id={descriptionId}>{recipe.summary}</p>
 
             <dl className={styles.info}>

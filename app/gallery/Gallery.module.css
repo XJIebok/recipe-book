@@ -28,9 +28,11 @@
   box-shadow: 0 3px 12px rgb(47 42 37 / 8%);
 }
 
-.card:hover {
-  border-color: #8b4a2f;
-  background: #faf5ef;
+@media (hover: hover) and (pointer: fine) {
+  .card:hover {
+    border-color: #8b4a2f;
+    background: #faf5ef;
+  }
 }
 
 .card:focus-visible,

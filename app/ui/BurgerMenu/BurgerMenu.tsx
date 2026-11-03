@@ -33,6 +33,8 @@ export default function BurgerMenu() {
   const { user, logout } = useDemoAuth();
 
   const [isOpen, setIsOpen] = useState(false);
+  const [showHeader, setShowHeader] = useState(true);
+  const [pastScrollThreshold, setPastScrollThreshold] = useState(false);
 
   const panelId = useId();
   const titleId = useId();
@@ -45,6 +47,45 @@ export default function BurgerMenu() {
   const closeMenu = useCallback(() => {
     setIsOpen(false);
   }, []);
+ 
+  // Показываем шапку при движении вверх, скрываем при движении вниз.
+  useEffect(() => {
+    let lastDirectionY = window.scrollY;
+
+    function handleScroll() {
+      const y = Math.max(0, window.scrollY);
+      setPastScrollThreshold(y > 400);
+
+      // Рядом с началом страницы шапка всегда видима.
+      if (y <= 120) {
+        setShowHeader(true);
+        lastDirectionY = y;
+        return;
+      }
+
+      const delta = y - lastDirectionY;
+      if (Math.abs(delta) >= 8) {
+        setShowHeader(delta < 0);
+        lastDirectionY = y;
+      }
+    }
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  function scrollToTop() {
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    window.scrollTo({
+      top: 0,
+      behavior: reducedMotion ? "auto" : "smooth",
+    });
+  }
+
 
   useEffect(() => {
     if (!isOpen) {
@@ -126,7 +167,10 @@ export default function BurgerMenu() {
   }
 
   return (
-    <header className={styles.header}>
+    <>
+    <header
+      className={`${styles.header} ${!showHeader && !isOpen ? styles.headerHidden : ""}`}
+    >
       <Link className={styles.brand} href="/start">
         Электронная книга рецептов
       </Link>
@@ -233,5 +277,17 @@ export default function BurgerMenu() {
         </div>
       </div>
     </header>
+    {pastScrollThreshold && showHeader && !isOpen ? (
+      <button
+        type="button"
+        className={styles.backToTop}
+        aria-label="Вернуться к началу страницы"
+        title="Наверх"
+        onClick={scrollToTop}
+      >
+        <span aria-hidden="true">↑</span>
+      </button>
+    ) : null}
+    </>
   );
 }

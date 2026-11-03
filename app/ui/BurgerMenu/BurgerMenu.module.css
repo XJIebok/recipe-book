@@ -1,6 +1,12 @@
 
 /* Верхняя панель приложения. */
 .header {
+  /* Остаётся у верхнего края при прокрутке и плавно прячется вниз. */
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  transition: top 200ms ease;
+
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -14,6 +20,12 @@
 
   background: #ffffff;
   box-shadow: 0 2px 10px rgb(47 42 37 / 6%);
+}
+
+/* Скрываем шапку выше видимой области, не используя transform.
+   Иначе fixed-оверлей вложенного меню может потерять привязку к viewport. */
+.headerHidden {
+  top: -120px;
 }
 
 .brand {
@@ -45,8 +57,10 @@
   cursor: pointer;
 }
 
-.menuButton:hover {
-  background: #f0e3d9;
+@media (hover: hover) and (pointer: fine) {
+  .menuButton:hover {
+    background: #f0e3d9;
+  }
 }
 
 .menuButton span:first-child {
@@ -73,7 +87,7 @@
 
 /* Выдвижная панель справа. */
 .panel {
-  width: min(400px, 100%);
+  width: min(400px, 90vw);
   height: 100dvh;
   overflow-y: auto;
 
@@ -119,8 +133,10 @@
   cursor: pointer;
 }
 
-.closeButton:hover {
-  background: #f0e3d9;
+@media (hover: hover) and (pointer: fine) {
+  .closeButton:hover {
+    background: #f0e3d9;
+  }
 }
 
 /* Основные пункты меню. */
@@ -141,8 +157,10 @@
   text-decoration: none;
 }
 
-.navLink:hover {
-  background: #f7eee7;
+@media (hover: hover) and (pointer: fine) {
+  .navLink:hover {
+    background: #f7eee7;
+  }
 }
 
 .navLink[aria-current="page"],
@@ -198,9 +216,40 @@
   cursor: pointer;
 }
 
-.loginLink:hover,
-.logoutButton:hover {
-  background: #713b27;
+@media (hover: hover) and (pointer: fine) {
+  .loginLink:hover,
+  .logoutButton:hover {
+    background: #713b27;
+  }
+}
+
+/* Кнопка возврата наверх появляется при обратной прокрутке. */
+.backToTop {
+  position: fixed;
+  right: calc(16px + env(safe-area-inset-right, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 90;
+
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+
+  border: 0;
+  border-radius: 50%;
+  background: #8b4a2f;
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgb(47 42 37 / 25%);
+
+  font: inherit;
+  font-size: 28px;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .backToTop:hover {
+    background: #713b27;
+  }
 }
 
 /* Управление с клавиатуры. */
@@ -209,7 +258,8 @@
 .closeButton:focus-visible,
 .navLink:focus-visible,
 .loginLink:focus-visible,
-.logoutButton:focus-visible {
+.logoutButton:focus-visible,
+.backToTop:focus-visible {
   outline: 3px solid #8b4a2f;
   outline-offset: 3px;
 }
@@ -226,5 +276,11 @@
 
   .menuButton {
     padding: 9px 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header {
+    transition: none;
   }
 }

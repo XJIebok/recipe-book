@@ -68,8 +68,10 @@
   cursor: pointer;
 }
 
-.closeButton:hover {
-  background: #f0e3d9;
+@media (hover: hover) and (pointer: fine) {
+  .closeButton:hover {
+    background: #f0e3d9;
+  }
 }
 
 .imageWrap {
@@ -150,8 +152,10 @@
   text-decoration: none;
 }
 
-.recipeLink:hover {
-  background: #713b27;
+@media (hover: hover) and (pointer: fine) {
+  .recipeLink:hover {
+    background: #713b27;
+  }
 }
 
 .recipeLink:focus-visible,
@@ -183,33 +187,6 @@
   }
 }
 
-/* Будущая навигация между рецептами. */
-.navigation {
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-
-  margin-bottom: 20px;
-}
-
-.navButton {
-  min-height: 40px;
-  padding: 8px 14px;
-
-  border: 1px solid #d8cfc5;
-  border-radius: 8px;
-
-  background: #f7f3ed;
-  color: #665b52;
-
-  font: inherit;
-}
-
-.navButton:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
 
 /* Кнопка управления избранным. */
 .favoriteButton {
@@ -228,8 +205,10 @@
   cursor: pointer;
 }
 
-.favoriteButton:hover {
-  background: #f7eee7;
+@media (hover: hover) and (pointer: fine) {
+  .favoriteButton:hover {
+    background: #f7eee7;
+  }
 }
 
 .favoriteButton[aria-pressed="true"] {
