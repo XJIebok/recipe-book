@@ -1,8 +1,8 @@
 # Recipe App Code Snapshot
 
-Generated: 2026-10-31 22:19
+Generated: 2026-11-04 22:50
 
-Files: 28
+Files: 29
 
 # ./app/about/page.tsx
 
@@ -2820,14 +2820,10 @@ export default function RecipesGallery({
   box-shadow: 0 3px 12px rgb(47 42 37 / 8%);
 }
 
-.card:hover {
-  border-color: #8b4a2f;
-  @media (hover: hover) and (pointer: fine) {
-    .card:hover {
-      border-color: #8b4a2f;
-      background: #faf5ef;
-    
-    }
+@media (hover: hover) and (pointer: fine) {
+  .card:hover {
+    border-color: #8b4a2f;
+    background: #faf5ef;
   }
 }
 
@@ -3228,6 +3224,13 @@ main > section {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Убираем стандартную подсветку касания,
+   сохраняя видимый фокус при работе с клавиатурой. */
+a,
+button {
+  -webkit-tap-highlight-color: transparent;
+}
 ```
 
 # ./app/layout.tsx
@@ -3264,6 +3267,27 @@ export default function RootLayout({
     </html>
   );
 }
+```
+
+# ./app/lib/prisma.ts
+
+```typescript
+
+import { PrismaClient } from "@prisma/client";
+
+// Храним единый экземпляр PrismaClient.
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined;
+};
+
+// Повторно используем клиент при горячей перезагрузке Next.js.
+export const prisma =
+  globalForPrisma.prisma ?? new PrismaClient();
+
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = prisma;
+}
+
 ```
 
 # ./app/page.tsx
