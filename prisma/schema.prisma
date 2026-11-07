@@ -1,20 +1,151 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// ЛР6. Электронная книга рецептов.
+// Совместимо с Prisma ORM 6.19.2. Пока только модель: миграция ещё не применялась.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
-// Временная модель для проверки Prisma Client.
-// В ЛР6 заменить её настоящими моделями.
-model SetupCheck {
-  id Int @id
+enum Cuisine {
+  ITALIAN
+  RUSSIAN
+  HOME_STYLE
+}
+
+enum UnitKind {
+  NUMERIC
+  QUALITATIVE
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String   @db.VarChar(80)
+  email        String   @unique @db.VarChar(254)
+  passwordHash String   @db.VarChar(255)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  favorites FavoriteRecipe[]
+}
+
+model Recipe {
+  id                 Int      @id @default(autoincrement())
+  slug               String   @unique @db.VarChar(100)
+  title              String   @db.VarChar(200)
+  summary            String   @db.Text
+  cuisine            Cuisine?
+  baseServings       Int
+  cookingTimeMinutes Int
+  image              String?  @db.Text
+  imageAlt           String?  @db.Text
+  videoUrl           String?  @db.Text
+  createdAt          DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime @updatedAt @db.Timestamptz(3)
+
+  ingredients RecipeIngredient[]
+  steps       RecipeStep[]
+  favorites   FavoriteRecipe[]
+
+  // Быстрые фильтры по кухне и времени, сортировка по времени и названию.
+  @@index([cuisine, cookingTimeMinutes])
+  @@index([cookingTimeMinutes])
+  @@index([title])
+}
+
+model Ingredient {
+  id   String @id @db.VarChar(100)
+  name String @db.VarChar(150)
+
+  measurements IngredientMeasurement[]
+}
+
+model MeasurementUnit {
+  code String   @id @db.VarChar(32)
+  name String   @db.VarChar(60)
+  kind UnitKind
+
+  measurements IngredientMeasurement[]
+}
+
+model IngredientMeasurement {
+  id           Int      @id @default(autoincrement())
+  ingredientId String   @db.VarChar(100)
+  unitCode     String   @db.VarChar(32)
+  amount       Decimal? @db.Decimal(12, 3)
+  maxAmount    Decimal? @db.Decimal(12, 3)
+
+  ingredient Ingredient         @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
+  unit       MeasurementUnit    @relation(fields: [unitCode], references: [code], onDelete: Restrict)
+  recipes    RecipeIngredient[]
+
+  // Уникальность сочетаний, включая NULL, добавим в SQL-миграцию:
+  // UNIQUE INDEX (... ingredientId, unitCode, amount, maxAmount) NULLS NOT DISTINCT.
+  // Этот индекс одновременно поможет искать все количества заданного ингредиента.
+}
+
+model RecipeIngredient {
+  id            Int @id @default(autoincrement())
+  recipeId      Int
+  measurementId Int
+
+  recipe      Recipe                @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  measurement IngredientMeasurement @relation(fields: [measurementId], references: [id], onDelete: Restrict)
+  usages      StepIngredientUsage[]
+
+  // Одну и ту же запись о количестве не добавляем дважды в один рецепт.
+  @@unique([recipeId, measurementId])
+  // Для FK из StepIngredientUsage: контроль принадлежности одному рецепту.
+  @@unique([id, recipeId])
+  // Обратный поиск рецептов по варианту количества ингредиента.
+  @@index([measurementId, recipeId])
+}
+
+model RecipeStep {
+  id              Int     @id @default(autoincrement())
+  recipeId        Int
+  position        Int
+  description     String  @db.Text
+  image           String? @db.Text
+  imageAlt        String? @db.Text
+  durationMinutes Int?
+
+  recipe Recipe                @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  usages StepIngredientUsage[]
+
+  @@unique([recipeId, position])
+  // Для FK из StepIngredientUsage: контроль принадлежности одному рецепту.
+  @@unique([id, recipeId])
+}
+
+model StepIngredientUsage {
+  id                 Int      @id @default(autoincrement())
+  recipeId           Int
+  stepId             Int
+  recipeIngredientId Int
+  fraction           Decimal? @db.Decimal(8, 6)
+
+  // Два составных FK не позволяют указать ингредиент чужого рецепта.
+  step             RecipeStep       @relation(fields: [stepId, recipeId], references: [id, recipeId], onDelete: Cascade)
+  recipeIngredient RecipeIngredient @relation(fields: [recipeIngredientId, recipeId], references: [id, recipeId], onDelete: Cascade)
+
+  @@unique([stepId, recipeIngredientId])
+  @@index([recipeIngredientId, recipeId])
+}
+
+model FavoriteRecipe {
+  userId    String   @db.Uuid
+  recipeId  Int
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  // Методичка ЛР6 требует составной первичный ключ у избранного.
+  @@id([userId, recipeId])
+  @@index([recipeId])
 }

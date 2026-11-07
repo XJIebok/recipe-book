@@ -1,0 +1,2 @@
+-- для применения запроса sql использовать:
+-- \i 'E:/Documents/сем 7/Web-программирование/Лаба 1/recipe-book/scripts/check-db.sql'
